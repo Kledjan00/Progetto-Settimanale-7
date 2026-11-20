@@ -41,19 +41,19 @@ class Evento {
 // La chiave 3 gratuita
 const API_URL = "https://www.thesportsdb.com/api/v1/json/123/";
 
-// fetch + controllo di ok + JSON
-async function getJSON(url) {
-  const r = await fetch(url);
+// fetch + controllo di ok + JSON. Col signal la richiesta si può annullare
+async function getJSON(url, signal) {
+  const r = await fetch(url, { signal });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
 
 // Cerca le squadre per nome. Se non trova niente teams è null
-async function cercaSquadre(query) {
+async function cercaSquadre(query, signal) {
   const url = new URL("searchteams.php", API_URL);
   url.searchParams.set("t", query);
 
-  const dati = await getJSON(url);
+  const dati = await getJSON(url, signal);
   return (dati.teams ?? []).map((d) => new Squadra(d));
 }
 
@@ -109,6 +109,9 @@ let squadraAperta = null;
 
 // Il timer del debounce, per poterlo cancellare a ogni tasto
 let timeoutId;
+
+// L'ultima ricerca partita, per poterla annullare se ne parte un'altra
+let controller;
 
 
 // === Render ===
@@ -237,17 +240,25 @@ function renderDettagli(squadra, prossimi, ultimi) {
 
 // Chiede le squadre all'API e mostra le card
 async function avviaRicerca(query) {
+  // Se c'è ancora una ricerca in corso la annullo: conta solo l'ultima
+  controller?.abort();
+  controller = new AbortController();
+  const { signal } = controller;
+
   // Nuova ricerca: i dettagli della squadra di prima spariscono
   document.getElementById("dettagli-section").hidden = true;
   mostraSpinner();
 
   try {
-    squadre = await cercaSquadre(query);
+    squadre = await cercaSquadre(query, signal);
     renderSquadre();
   } catch (err) {
+    // La ricerca annullata non è un vero errore: niente riquadro rosso
+    if (err.name === "AbortError") return;
     mostraErrore("Impossibile completare la ricerca: " + err.message);
   } finally {
-    nascondiSpinner();
+    // Lo spinner lo spegne solo l'ultima ricerca, non quella annullata
+    if (!signal.aborted) nascondiSpinner();
   }
 }
 
