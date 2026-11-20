@@ -75,10 +75,40 @@ async function caricaDettagli(idTeam) {
 }
 
 
+// === Preferiti (localStorage) ===
+
+// Il nome sotto cui li salvo nel localStorage
+const CHIAVE_PREFERITI = "sportshub-preferiti";
+
+function salvaPreferiti() {
+  localStorage.setItem(CHIAVE_PREFERITI, JSON.stringify(preferiti));
+}
+
+// Se non c'è ancora niente salvato getItem dà null, quindi parto da "[]".
+// Squadra non ha metodi, quindi gli oggetti letti dal JSON vanno già bene
+function caricaPreferiti() {
+  return JSON.parse(localStorage.getItem(CHIAVE_PREFERITI) ?? "[]");
+}
+
+// true se la squadra è già tra i preferiti
+function inPreferiti(id) {
+  return preferiti.some((s) => s.id === id);
+}
+
+
 // === Stato ===
 
 // Le squadre dell'ultima ricerca, per ritrovarle al click sulla card
 let squadre = [];
+
+// Le squadre preferite, lette dal localStorage appena si apre la pagina
+let preferiti = caricaPreferiti();
+
+// La squadra aperta nei dettagli, per sapere cosa aggiungere ai preferiti
+let squadraAperta = null;
+
+// Il timer del debounce, per poterlo cancellare a ogni tasto
+let timeoutId;
 
 
 // === Render ===
@@ -106,7 +136,34 @@ function mostraErrore(msg) {
   el.hidden = false;
 }
 
-// Una card per ogni squadra: logo, nome, campionato e paese
+// La card di una squadra: logo, nome, campionato e paese.
+// La uso sia per le squadre trovate che per i preferiti
+function creaCard(s) {
+  const card = crea("div", "card card-squadra h-100 border-0 shadow-sm text-center p-3");
+  card.dataset.id = s.id;
+
+  // Qualche squadra non ha il logo
+  if (s.logo) {
+    const img = document.createElement("img");
+    img.src = s.logo;
+    img.alt = s.nome;
+    img.className = "logo mx-auto";
+    card.append(img);
+  }
+
+  card.append(
+    crea("h3", "h6 fw-bold mt-3 mb-1", s.nome),
+    crea("p", "small text-secondary mb-0", s.lega),
+    crea("p", "small text-secondary mb-0", s.paese),
+  );
+
+  // Colonne di Bootstrap: 1 card per riga sul telefono, 2 sul tablet, 3 su desktop
+  const colonna = crea("div", "col-12 col-md-6 col-xl-4");
+  colonna.append(card);
+  return colonna;
+}
+
+// Le card delle squadre trovate
 function renderSquadre() {
   const lista = document.getElementById("lista-squadre");
 
@@ -115,32 +172,32 @@ function renderSquadre() {
     return;
   }
 
-  const colonne = squadre.map((s) => {
-    const card = crea("div", "card card-squadra h-100 border-0 shadow-sm text-center p-3");
-    card.dataset.id = s.id;
+  lista.replaceChildren(...squadre.map((s) => creaCard(s)));
+}
 
-    // Qualche squadra non ha il logo
-    if (s.logo) {
-      const img = document.createElement("img");
-      img.src = s.logo;
-      img.alt = s.nome;
-      img.className = "logo mx-auto";
-      card.append(img);
-    }
+// Le card dei preferiti, oppure un messaggio se non ce ne sono
+function renderPreferiti() {
+  const lista = document.getElementById("lista-preferiti");
 
-    card.append(
-      crea("h3", "h6 fw-bold mt-3 mb-1", s.nome),
-      crea("p", "small text-secondary mb-0", s.lega),
-      crea("p", "small text-secondary mb-0", s.paese),
-    );
+  if (preferiti.length === 0) {
+    lista.replaceChildren(crea("p", "text-secondary fst-italic mb-0", "Nessun preferito: apri una squadra e premi '☆ Aggiungi ai preferiti'."));
+    return;
+  }
 
-    // Colonne di Bootstrap: 1 card per riga sul telefono, 2 sul tablet, 3 su desktop
-    const colonna = crea("div", "col-12 col-md-6 col-xl-4");
-    colonna.append(card);
-    return colonna;
-  });
+  lista.replaceChildren(...preferiti.map((s) => creaCard(s)));
+}
 
-  lista.replaceChildren(...colonne);
+// Il bottone cambia se la squadra è già tra i preferiti
+function aggiornaBottonePreferito() {
+  const bottone = document.getElementById("btn-preferito");
+
+  if (inPreferiti(squadraAperta.id)) {
+    bottone.textContent = "★ Rimuovi dai preferiti";
+    bottone.className = "btn btn-warning fw-bold";
+  } else {
+    bottone.textContent = "☆ Aggiungi ai preferiti";
+    bottone.className = "btn btn-outline-dark fw-bold";
+  }
 }
 
 // Una lista di partite: data sopra, "casa vs trasferta" e punteggio sotto
@@ -167,7 +224,9 @@ function renderEventi(idLista, eventi, testoVuoto) {
 }
 
 function renderDettagli(squadra, prossimi, ultimi) {
+  squadraAperta = squadra;
   document.getElementById("nome-squadra").textContent = squadra.nome;
+  aggiornaBottonePreferito();
   renderEventi("prossimi-eventi", prossimi, "Nessun evento in programma");
   renderEventi("ultimi-risultati", ultimi, "Nessun risultato disponibile");
   document.getElementById("dettagli-section").hidden = false;
@@ -176,12 +235,8 @@ function renderDettagli(squadra, prossimi, ultimi) {
 
 // === Eventi ===
 
-// 'Cerca': chiede le squadre all'API e mostra le card
-document.getElementById("form-cerca").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const query = document.getElementById("cerca").value.trim();
-  if (!query) return;
-
+// Chiede le squadre all'API e mostra le card
+async function avviaRicerca(query) {
   // Nuova ricerca: i dettagli della squadra di prima spariscono
   document.getElementById("dettagli-section").hidden = true;
   mostraSpinner();
@@ -194,14 +249,40 @@ document.getElementById("form-cerca").addEventListener("submit", async (e) => {
   } finally {
     nascondiSpinner();
   }
+}
+
+// 'Cerca' o Invio: la ricerca parte subito
+document.getElementById("form-cerca").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const query = document.getElementById("cerca").value.trim();
+  if (!query) return;
+
+  // Cerco adesso, quindi il timer del debounce non serve più
+  clearTimeout(timeoutId);
+  avviaRicerca(query);
+});
+
+// Debounce: mentre scrivi, la ricerca parte 400 ms dopo l'ultimo tasto
+document.getElementById("cerca").addEventListener("input", (e) => {
+  const query = e.target.value.trim();
+
+  // A ogni tasto cancello il timer di prima e ne faccio partire uno nuovo
+  clearTimeout(timeoutId);
+
+  // Con meno di 3 lettere non cerco
+  if (query.length < 3) return;
+
+  timeoutId = setTimeout(() => avviaRicerca(query), 400);
 });
 
 // Click su una card: carica prossimi eventi e ultimi risultati di quella squadra
-document.getElementById("lista-squadre").addEventListener("click", async (e) => {
+async function apriDettagli(e) {
   const card = e.target.closest(".card-squadra");
   if (!card) return;
 
-  const squadra = squadre.find((s) => s.id === card.dataset.id);
+  // La card può essere tra le squadre trovate o tra i preferiti
+  const id = card.dataset.id;
+  const squadra = squadre.find((s) => s.id === id) ?? preferiti.find((s) => s.id === id);
   mostraSpinner();
 
   try {
@@ -212,4 +293,28 @@ document.getElementById("lista-squadre").addEventListener("click", async (e) => 
   } finally {
     nascondiSpinner();
   }
+}
+
+// Funziona uguale sulle card della ricerca e su quelle dei preferiti
+document.getElementById("lista-squadre").addEventListener("click", apriDettagli);
+document.getElementById("lista-preferiti").addEventListener("click", apriDettagli);
+
+// '☆ Aggiungi' o '★ Rimuovi': la squadra aperta entra o esce dai preferiti
+document.getElementById("btn-preferito").addEventListener("click", () => {
+  if (inPreferiti(squadraAperta.id)) {
+    preferiti = preferiti.filter((s) => s.id !== squadraAperta.id);
+  } else {
+    preferiti.push(squadraAperta);
+  }
+
+  // Salvo la lista nuova: così una squadra tolta sparisce anche dal localStorage
+  salvaPreferiti();
+  renderPreferiti();
+  aggiornaBottonePreferito();
 });
+
+
+// === Avvio ===
+
+// I preferiti salvati compaiono appena si apre la pagina
+renderPreferiti();

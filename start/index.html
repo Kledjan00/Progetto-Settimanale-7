@@ -16,7 +16,7 @@
         <h1 class="fw-bold">SportsHub</h1>
         <p class="mb-4">Cerca una squadra, scopri prossime partite e ultimi risultati.</p>
 
-        <!-- La ricerca parte con 'Cerca' o con Invio -->
+        <!-- La ricerca parte da sola mentre scrivi, oppure subito con 'Cerca' o Invio -->
         <div class="row justify-content-center">
           <div class="col-12 col-md-8 col-xl-6">
             <form id="form-cerca" class="d-flex gap-2">
@@ -31,6 +31,14 @@
     </header>
 
     <main class="container py-4">
+
+      <section id="preferiti-section" class="mb-5">
+        <!-- Le squadre salvate: restano anche dopo aver aggiornato la pagina -->
+        <h2 class="h4 fw-bold mb-3">I tuoi preferiti</h2>
+
+        <!-- Le card le mette lo script all'avvio -->
+        <div id="lista-preferiti" class="row g-3 justify-content-center"></div>
+      </section>
 
       <section id="risultati-section">
         <!-- Spinner, errore, lista risultati ricerca squadre -->
@@ -53,7 +61,12 @@
 
       <section id="dettagli-section" class="card border-0 shadow-sm p-4 mt-5" hidden>
         <!-- Visibile dopo click su una squadra: prossimi eventi + ultimi risultati -->
-        <h2 id="nome-squadra" class="h3 fw-bold text-primary mb-3"></h2>
+
+        <!-- Il nome a sinistra e il bottone dei preferiti a destra (sul telefono va sotto) -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+          <h2 id="nome-squadra" class="h3 fw-bold text-primary mb-0"></h2>
+          <button type="button" id="btn-preferito" class="btn btn-outline-dark fw-bold"></button>
+        </div>
 
         <!-- Su tablet e desktop le due liste stanno una accanto all'altra -->
         <div class="row g-4">
