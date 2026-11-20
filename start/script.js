@@ -134,13 +134,43 @@ function renderSquadre() {
       crea("p", "small text-secondary mb-0", s.paese),
     );
 
-    // Una colonna di Bootstrap per ogni card
-    const colonna = crea("div", "col-12");
+    // Colonne di Bootstrap: 1 card per riga sul telefono, 2 sul tablet, 3 su desktop
+    const colonna = crea("div", "col-12 col-md-6 col-xl-4");
     colonna.append(card);
     return colonna;
   });
 
   lista.replaceChildren(...colonne);
+}
+
+// Una lista di partite: data sopra, "casa vs trasferta" e punteggio sotto
+function renderEventi(idLista, eventi, testoVuoto) {
+  const ul = document.getElementById(idLista);
+
+  if (eventi.length === 0) {
+    ul.replaceChildren(crea("li", "list-group-item px-0 fst-italic", testoVuoto));
+    return;
+  }
+
+  const righe = eventi.map((e) => {
+    const partita = crea("div", "fw-bold", `${e.casa} vs ${e.trasferta}`);
+
+    // Il punteggio nel badge verde, solo se la partita è già giocata
+    if (e.punteggio()) partita.append(crea("span", "badge bg-success fw-normal ms-2", e.punteggio()));
+
+    const li = crea("li", "list-group-item px-0");
+    li.append(crea("div", "small text-secondary", e.dataFormattata()), partita);
+    return li;
+  });
+
+  ul.replaceChildren(...righe);
+}
+
+function renderDettagli(squadra, prossimi, ultimi) {
+  document.getElementById("nome-squadra").textContent = squadra.nome;
+  renderEventi("prossimi-eventi", prossimi, "Nessun evento in programma");
+  renderEventi("ultimi-risultati", ultimi, "Nessun risultato disponibile");
+  document.getElementById("dettagli-section").hidden = false;
 }
 
 
@@ -152,6 +182,8 @@ document.getElementById("form-cerca").addEventListener("submit", async (e) => {
   const query = document.getElementById("cerca").value.trim();
   if (!query) return;
 
+  // Nuova ricerca: i dettagli della squadra di prima spariscono
+  document.getElementById("dettagli-section").hidden = true;
   mostraSpinner();
 
   try {
@@ -159,6 +191,24 @@ document.getElementById("form-cerca").addEventListener("submit", async (e) => {
     renderSquadre();
   } catch (err) {
     mostraErrore("Impossibile completare la ricerca: " + err.message);
+  } finally {
+    nascondiSpinner();
+  }
+});
+
+// Click su una card: carica prossimi eventi e ultimi risultati di quella squadra
+document.getElementById("lista-squadre").addEventListener("click", async (e) => {
+  const card = e.target.closest(".card-squadra");
+  if (!card) return;
+
+  const squadra = squadre.find((s) => s.id === card.dataset.id);
+  mostraSpinner();
+
+  try {
+    const { prossimi, ultimi } = await caricaDettagli(squadra.id);
+    renderDettagli(squadra, prossimi, ultimi);
+  } catch (err) {
+    mostraErrore("Impossibile caricare i dettagli: " + err.message);
   } finally {
     nascondiSpinner();
   }

@@ -51,8 +51,22 @@
         </div>
       </section>
 
-      <section id="dettagli-section" hidden>
+      <section id="dettagli-section" class="card border-0 shadow-sm p-4 mt-5" hidden>
         <!-- Visibile dopo click su una squadra: prossimi eventi + ultimi risultati -->
+        <h2 id="nome-squadra" class="h3 fw-bold text-primary mb-3"></h2>
+
+        <!-- Su tablet e desktop le due liste stanno una accanto all'altra -->
+        <div class="row g-4">
+          <div class="col-12 col-md-6">
+            <h3 class="h5 fw-bold pb-2 border-bottom border-2 border-primary">Prossimi eventi</h3>
+            <ul id="prossimi-eventi" class="list-group list-group-flush"></ul>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <h3 class="h5 fw-bold pb-2 border-bottom border-2 border-primary">Ultimi risultati</h3>
+            <ul id="ultimi-risultati" class="list-group list-group-flush"></ul>
+          </div>
+        </div>
       </section>
 
     </main>
