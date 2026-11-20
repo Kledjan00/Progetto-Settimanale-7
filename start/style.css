@@ -21,3 +21,24 @@ body {
 .border-primary {
   border-color: #193366 !important;
 }
+
+
+/* ---- CARD SQUADRE ---- */
+
+/* Si clicca per vedere i dettagli, e col mouse sopra si alza un po' */
+.card-squadra {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card-squadra:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12) !important; /*vince sullo shadow-sm*/
+}
+
+/* Il logo sempre della stessa misura, senza deformarsi */
+.logo {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+}

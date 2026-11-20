@@ -73,3 +73,93 @@ async function caricaDettagli(idTeam) {
     ultimi: (ultimi.results ?? []).map((d) => new Evento(d)),
   };
 }
+
+
+// === Stato ===
+
+// Le squadre dell'ultima ricerca, per ritrovarle al click sulla card
+let squadre = [];
+
+
+// === Render ===
+
+// Crea un elemento con classe e testo
+function crea(tag, classe, testo) {
+  const el = document.createElement(tag);
+  if (classe) el.className = classe;
+  if (testo !== undefined) el.textContent = testo;
+  return el;
+}
+
+function mostraSpinner() {
+  document.getElementById("spinner").hidden = false;
+  document.getElementById("errore").hidden = true;
+}
+
+function nascondiSpinner() {
+  document.getElementById("spinner").hidden = true;
+}
+
+function mostraErrore(msg) {
+  const el = document.getElementById("errore");
+  el.textContent = msg;
+  el.hidden = false;
+}
+
+// Una card per ogni squadra: logo, nome, campionato e paese
+function renderSquadre() {
+  const lista = document.getElementById("lista-squadre");
+
+  if (squadre.length === 0) {
+    lista.replaceChildren(crea("p", "text-secondary fst-italic mb-0", "Nessuna squadra trovata."));
+    return;
+  }
+
+  const colonne = squadre.map((s) => {
+    const card = crea("div", "card card-squadra h-100 border-0 shadow-sm text-center p-3");
+    card.dataset.id = s.id;
+
+    // Qualche squadra non ha il logo
+    if (s.logo) {
+      const img = document.createElement("img");
+      img.src = s.logo;
+      img.alt = s.nome;
+      img.className = "logo mx-auto";
+      card.append(img);
+    }
+
+    card.append(
+      crea("h3", "h6 fw-bold mt-3 mb-1", s.nome),
+      crea("p", "small text-secondary mb-0", s.lega),
+      crea("p", "small text-secondary mb-0", s.paese),
+    );
+
+    // Una colonna di Bootstrap per ogni card
+    const colonna = crea("div", "col-12");
+    colonna.append(card);
+    return colonna;
+  });
+
+  lista.replaceChildren(...colonne);
+}
+
+
+// === Eventi ===
+
+// 'Cerca': chiede le squadre all'API e mostra le card
+document.getElementById("form-cerca").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const query = document.getElementById("cerca").value.trim();
+  if (!query) return;
+
+  mostraSpinner();
+
+  try {
+    squadre = await cercaSquadre(query);
+    renderSquadre();
+  } catch (err) {
+    mostraErrore("Impossibile completare la ricerca: " + err.message);
+  } finally {
+    nascondiSpinner();
+  }
+});
