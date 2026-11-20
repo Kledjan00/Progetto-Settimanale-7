@@ -22,6 +22,12 @@ body {
   border-color: #193366 !important;
 }
 
+/* Il bottone scelto nel filtro per sport, anche lui col nostro blu */
+.btn-primary {
+  background-color: #193366 !important;
+  border-color: #193366 !important;
+}
+
 
 /* ---- CARD SQUADRE ---- */
 

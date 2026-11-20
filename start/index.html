@@ -32,13 +32,13 @@
 
     <main class="container py-4">
 
-      <section id="preferiti-section" class="mb-5">
-        <!-- Le squadre salvate: restano anche dopo aver aggiornato la pagina -->
-        <h2 class="h4 fw-bold mb-3">I tuoi preferiti</h2>
-
-        <!-- Le card le mette lo script all'avvio -->
-        <div id="lista-preferiti" class="row g-3 justify-content-center"></div>
-      </section>
+      <!-- Filtro per sport: vale per le card della ricerca, i preferiti e l'agenda -->
+      <div id="filtro-sport" class="d-flex flex-wrap justify-content-center gap-2 mb-4">
+        <button type="button" class="btn btn-primary rounded-pill px-3" data-sport="Tutti">Tutti</button>
+        <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-sport="Soccer">⚽ Calcio</button>
+        <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-sport="Basketball">🏀 Basket</button>
+        <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-sport="American Football">🏈 Football</button>
+      </div>
 
       <section id="risultati-section">
         <!-- Spinner, errore, lista risultati ricerca squadre -->
@@ -81,6 +81,35 @@
           </div>
         </div>
       </section>
+
+      <!-- Preferiti e agenda: su desktop uno accanto all'altro, sul telefono uno sotto l'altro -->
+      <div class="row g-4 mt-4">
+        <section id="preferiti-section" class="col-12 col-lg-8">
+          <!-- Le squadre salvate: restano anche dopo aver aggiornato la pagina -->
+          <h2 class="h4 fw-bold mb-3">I tuoi preferiti</h2>
+
+          <!-- Le card le mette lo script all'avvio -->
+          <div id="lista-preferiti" class="row g-3 justify-content-center"></div>
+        </section>
+
+        <section id="agenda-section" class="col-12 col-lg-4">
+          <!-- Le prossime partite di tutti i preferiti, dalla più vicina -->
+          <h2 class="h4 fw-bold mb-3">Prossimi appuntamenti</h2>
+
+          <div id="spinner-agenda" class="text-center my-3" hidden>
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Caricamento in corso...</span>
+            </div>
+          </div>
+
+          <!-- Se qualche squadra non si carica lo scrivo qui, le altre si vedono lo stesso -->
+          <div id="errore-agenda" class="alert alert-warning" role="alert" hidden></div>
+
+          <div class="card border-0 shadow-sm px-3">
+            <ul id="agenda" class="list-group list-group-flush"></ul>
+          </div>
+        </section>
+      </div>
 
     </main>
 

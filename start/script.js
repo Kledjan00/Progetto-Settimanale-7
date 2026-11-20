@@ -8,6 +8,7 @@ class Squadra {
     this.logo = dati.strBadge;
     this.lega = dati.strLeague ?? "—";
     this.paese = dati.strCountry ?? "—";
+    this.sport = dati.strSport; // Soccer, Basketball... serve per il filtro
   }
 }
 
@@ -74,6 +75,16 @@ async function caricaDettagli(idTeam) {
   };
 }
 
+// Solo i prossimi eventi di una squadra: per l'agenda bastano questi,
+// così all'avvio faccio metà delle richieste (la chiave gratuita ne permette poche)
+async function caricaProssimi(idTeam) {
+  const url = new URL("eventsnext.php", API_URL);
+  url.searchParams.set("id", idTeam);
+
+  const dati = await getJSON(url);
+  return (dati.events ?? []).map((d) => new Evento(d));
+}
+
 
 // === Preferiti (localStorage) ===
 
@@ -113,6 +124,12 @@ let timeoutId;
 // L'ultima ricerca partita, per poterla annullare se ne parte un'altra
 let controller;
 
+// Le prossime partite già caricate, una lista per ogni squadra (la chiave è l'id)
+const prossimiPerSquadra = {};
+
+// Lo sport scelto nel filtro: "Tutti" vuol dire nessun filtro
+let filtroSport = "Tutti";
+
 
 // === Render ===
 
@@ -137,6 +154,11 @@ function mostraErrore(msg) {
   const el = document.getElementById("errore");
   el.textContent = msg;
   el.hidden = false;
+}
+
+// true se la squadra è dello sport scelto nel filtro
+function passaFiltro(s) {
+  return filtroSport === "Tutti" || s.sport === filtroSport;
 }
 
 // La card di una squadra: logo, nome, campionato e paese.
@@ -175,7 +197,15 @@ function renderSquadre() {
     return;
   }
 
-  lista.replaceChildren(...squadre.map((s) => creaCard(s)));
+  // Solo quelle dello sport scelto
+  const visibili = squadre.filter((s) => passaFiltro(s));
+
+  if (visibili.length === 0) {
+    lista.replaceChildren(crea("p", "text-secondary fst-italic mb-0", "Nessuna squadra di questo sport."));
+    return;
+  }
+
+  lista.replaceChildren(...visibili.map((s) => creaCard(s)));
 }
 
 // Le card dei preferiti, oppure un messaggio se non ce ne sono
@@ -187,7 +217,15 @@ function renderPreferiti() {
     return;
   }
 
-  lista.replaceChildren(...preferiti.map((s) => creaCard(s)));
+  // Solo quelli dello sport scelto
+  const visibili = preferiti.filter((s) => passaFiltro(s));
+
+  if (visibili.length === 0) {
+    lista.replaceChildren(crea("p", "text-secondary fst-italic mb-0", "Nessun preferito di questo sport."));
+    return;
+  }
+
+  lista.replaceChildren(...visibili.map((s) => creaCard(s)));
 }
 
 // Il bottone cambia se la squadra è già tra i preferiti
@@ -233,6 +271,28 @@ function renderDettagli(squadra, prossimi, ultimi) {
   renderEventi("prossimi-eventi", prossimi, "Nessun evento in programma");
   renderEventi("ultimi-risultati", ultimi, "Nessun risultato disponibile");
   document.getElementById("dettagli-section").hidden = false;
+}
+
+// Le prossime partite di tutti i preferiti in una lista sola, dalla più vicina
+function renderAgenda() {
+  const eventi = [];
+
+  // Anche qui vale il filtro per sport
+  for (const s of preferiti.filter((s) => passaFiltro(s))) {
+    for (const e of prossimiPerSquadra[s.id] ?? []) {
+      // Se due preferiti giocano tra loro, la partita la metto una volta sola
+      if (!eventi.some((x) => x.id === e.id)) eventi.push(e);
+    }
+  }
+
+  // In ordine di data: la più vicina sopra
+  eventi.sort((a, b) => new Date(a.data) - new Date(b.data));
+
+  const testoVuoto = preferiti.length === 0
+    ? "Aggiungi una squadra ai preferiti per vedere le sue prossime partite."
+    : "Nessuna partita in programma.";
+
+  renderEventi("agenda", eventi, testoVuoto);
 }
 
 
@@ -298,7 +358,14 @@ async function apriDettagli(e) {
 
   try {
     const { prossimi, ultimi } = await caricaDettagli(squadra.id);
+
+    // Me le tengo: se la squadra va nei preferiti, finiscono nell'agenda senza richiederle
+    prossimiPerSquadra[squadra.id] = prossimi;
+
     renderDettagli(squadra, prossimi, ultimi);
+
+    // Se ho cliccato un preferito in fondo alla pagina, salgo fino ai dettagli
+    document.getElementById("dettagli-section").scrollIntoView({ behavior: "smooth" });
   } catch (err) {
     mostraErrore("Impossibile caricare i dettagli: " + err.message);
   } finally {
@@ -321,11 +388,69 @@ document.getElementById("btn-preferito").addEventListener("click", () => {
   // Salvo la lista nuova: così una squadra tolta sparisce anche dal localStorage
   salvaPreferiti();
   renderPreferiti();
+  renderAgenda();
   aggiornaBottonePreferito();
+});
+
+// Filtro per sport: il bottone scelto diventa blu e le card si filtrano
+document.getElementById("filtro-sport").addEventListener("click", (e) => {
+  const bottone = e.target.closest("button[data-sport]");
+  if (!bottone) return;
+
+  filtroSport = bottone.dataset.sport;
+
+  // Blu solo quello scelto, gli altri grigi
+  for (const b of document.getElementById("filtro-sport").children) {
+    b.className = b === bottone
+      ? "btn btn-primary rounded-pill px-3"
+      : "btn btn-outline-secondary rounded-pill px-3";
+  }
+
+  renderPreferiti();
+  renderAgenda();
+
+  // Le card della ricerca le ridisegno solo se una ricerca c'è già stata
+  if (squadre.length > 0) renderSquadre();
 });
 
 
 // === Avvio ===
 
-// I preferiti salvati compaiono appena si apre la pagina
+// All'avvio carico le partite di tutti i preferiti insieme. Con allSettled
+// se una squadra va in errore le altre si vedono lo stesso
+async function caricaAgenda() {
+  if (preferiti.length === 0) {
+    renderAgenda();
+    return;
+  }
+
+  document.getElementById("spinner-agenda").hidden = false;
+
+  const risultati = await Promise.allSettled(preferiti.map((s) => caricaProssimi(s.id)));
+  const nonCaricate = [];
+
+  // risultati[i] è la risposta di preferiti[i]: "fulfilled" se è andata bene
+  risultati.forEach((r, i) => {
+    const squadra = preferiti[i];
+
+    if (r.status === "fulfilled") {
+      prossimiPerSquadra[squadra.id] = r.value;
+    } else {
+      nonCaricate.push(squadra.nome);
+    }
+  });
+
+  document.getElementById("spinner-agenda").hidden = true;
+
+  if (nonCaricate.length > 0) {
+    const el = document.getElementById("errore-agenda");
+    el.textContent = "Non sono riuscito a caricare le partite di: " + nonCaricate.join(", ");
+    el.hidden = false;
+  }
+
+  renderAgenda();
+}
+
+// I preferiti salvati compaiono appena si apre la pagina, poi arrivano le loro partite
 renderPreferiti();
+caricaAgenda();
