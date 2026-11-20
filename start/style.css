@@ -48,3 +48,62 @@ body {
   height: 100px;
   object-fit: contain;
 }
+
+
+/* ---- MODALE PARTITA ---- */
+
+/* Le partite nelle liste si cliccano per aprire la modale */
+.evento {
+  cursor: pointer;
+}
+
+.evento:hover {
+  background-color: rgba(127, 127, 127, 0.12); /*grigio leggero, va bene sia col chiaro che con lo scuro*/
+}
+
+/* Nella modale le due squadre prendono lo stesso spazio */
+.squadra-modale {
+  flex: 1;
+}
+
+/* I loghi nella modale, più piccoli di quelli delle card */
+.logo-piccolo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
+
+/* ---- MODALITÀ SCURA ---- */
+
+/* Card, liste e modale le scurisce Bootstrap da solo: qui c'è il resto */
+[data-bs-theme="dark"] body {
+  color: #e9ecef;
+  background: #10151f;
+}
+
+/* Il nostro blu sul fondo scuro non si legge: nella pagina diventa più chiaro */
+[data-bs-theme="dark"] main .text-primary {
+  color: #8fb3ff !important;
+}
+
+[data-bs-theme="dark"] main .border-primary {
+  border-color: #8fb3ff !important;
+}
+
+/* I testi grigi un po' più chiari */
+[data-bs-theme="dark"] .text-secondary {
+  color: #adb5bd !important;
+}
+
+/* Il bottone '☆ Aggiungi ai preferiti' nero sul fondo scuro sparirebbe */
+[data-bs-theme="dark"] .btn-outline-dark {
+  color: #e9ecef;
+  border-color: #e9ecef;
+}
+
+/* Anche i bottoni grigi del filtro un po' più chiari */
+[data-bs-theme="dark"] .btn-outline-secondary {
+  color: #adb5bd;
+  border-color: #adb5bd;
+}

@@ -13,6 +13,11 @@
     <header class="bg-primary text-white text-center py-5">
       <!-- Titolo dell'app + form di ricerca -->
       <div class="container">
+        <!-- Il bottone della modalità scura, in alto a destra -->
+        <div class="d-flex justify-content-end">
+          <button type="button" id="btn-tema" class="btn btn-sm btn-outline-light rounded-pill px-3">🌙 Modalità scura</button>
+        </div>
+
         <h1 class="fw-bold">SportsHub</h1>
         <p class="mb-4">Cerca una squadra, scopri prossime partite e ultimi risultati.</p>
 
@@ -113,6 +118,23 @@
 
     </main>
 
+    <!-- La modale di Bootstrap coi dettagli di una partita: si apre cliccando una partita -->
+    <div class="modal fade" id="modale-evento" tabindex="-1" aria-labelledby="titolo-evento" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 id="titolo-evento" class="modal-title h5 fw-bold"></h2>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+          </div>
+
+          <!-- Il contenuto lo mette lo script -->
+          <div id="corpo-evento" class="modal-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Il JS di Bootstrap serve per aprire e chiudere la modale -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

@@ -21,12 +21,34 @@ class Evento {
     this.trasferta = dati.strAwayTeam;
     this.punteggioCasa = dati.intHomeScore;
     this.punteggioTrasferta = dati.intAwayScore;
+
+    // Questi servono per la modale
+    this.ora = dati.strTime;
+    this.campionato = dati.strLeague;
+    this.stagione = dati.strSeason;
+    this.giornata = dati.intRound;
+    this.stadio = dati.strVenue;
+    this.paese = dati.strCountry;
+    this.logoCasa = dati.strHomeTeamBadge;
+    this.logoTrasferta = dati.strAwayTeamBadge;
+    this.immagine = dati.strThumb;
   }
 
   // "2026-05-17" diventa "17/05/2026"
   dataFormattata() {
     const formato = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
     return formato.format(new Date(this.data));
+  }
+
+  // L'API dà l'ora UTC: "17:30:00" diventa l'ora italiana, "18:30"
+  oraFormattata() {
+    if (!this.ora) return "";
+
+    const quando = new Date(`${this.data}T${this.ora}Z`);
+    if (isNaN(quando)) return this.ora.slice(0, 5); //se l'ora è scritta strana la lascio com'è
+
+    const formato = new Intl.DateTimeFormat("it-IT", { hour: "2-digit", minute: "2-digit" });
+    return formato.format(quando);
   }
 
   // "3 – 1", oppure niente se la partita non è ancora giocata
@@ -107,6 +129,18 @@ function inPreferiti(id) {
 }
 
 
+// === Modalità scura (localStorage) ===
+
+// Anche il tema me lo ricordo nel localStorage
+const CHIAVE_TEMA = "sportshub-tema";
+
+// Bootstrap cambia i colori da solo se su <html> c'è data-bs-theme="dark"
+function applicaTema(tema) {
+  document.documentElement.dataset.bsTheme = tema;
+  document.getElementById("btn-tema").textContent = tema === "dark" ? "☀️ Modalità chiara" : "🌙 Modalità scura";
+}
+
+
 // === Stato ===
 
 // Le squadre dell'ultima ricerca, per ritrovarle al click sulla card
@@ -129,6 +163,9 @@ const prossimiPerSquadra = {};
 
 // Lo sport scelto nel filtro: "Tutti" vuol dire nessun filtro
 let filtroSport = "Tutti";
+
+// Le partite mostrate nelle liste, per ritrovarle al click 
+const eventiMostrati = {};
 
 
 // === Render ===
@@ -256,8 +293,15 @@ function renderEventi(idLista, eventi, testoVuoto) {
     // Il punteggio nel badge verde, solo se la partita è già giocata
     if (e.punteggio()) partita.append(crea("span", "badge bg-success fw-normal ms-2", e.punteggio()));
 
-    const li = crea("li", "list-group-item px-0");
+    const li = crea("li", "list-group-item px-2 evento");
     li.append(crea("div", "small text-secondary", e.dataFormattata()), partita);
+
+    // Me la segno per ritrovarla al click. Con data-bs-toggle e data-bs-target
+    // la modale la apre Bootstrap da solo
+    eventiMostrati[e.id] = e;
+    li.dataset.id = e.id;
+    li.dataset.bsToggle = "modal";
+    li.dataset.bsTarget = "#modale-evento";
     return li;
   });
 
@@ -293,6 +337,71 @@ function renderAgenda() {
     : "Nessuna partita in programma.";
 
   renderEventi("agenda", eventi, testoVuoto);
+}
+
+// Una squadra nella modale: logo sopra e nome sotto
+function creaSquadraModale(logo, nome) {
+  const box = crea("div", "squadra-modale d-flex flex-column align-items-center gap-2");
+
+  if (logo) {
+    const img = document.createElement("img");
+    img.src = logo;
+    img.alt = nome;
+    img.className = "logo-piccolo";
+    box.append(img);
+  }
+
+  box.append(crea("span", "small fw-bold", nome));
+  return box;
+}
+
+// Riempie la modale con i dati della partita cliccata
+function renderModale(ev) {
+  document.getElementById("titolo-evento").textContent = `${ev.casa} vs ${ev.trasferta}`;
+
+  const corpo = document.getElementById("corpo-evento");
+  corpo.replaceChildren(); //via la partita di prima
+
+  // In alto l'immagine della partita, se l'API ce l'ha
+  if (ev.immagine) {
+    const img = document.createElement("img");
+    img.src = ev.immagine;
+    img.alt = `${ev.casa} vs ${ev.trasferta}`;
+    img.className = "img-fluid rounded mb-3";
+    corpo.append(img);
+  }
+
+  // Le due squadre una accanto all'altra, col punteggio in mezzo ("vs" se si deve ancora giocare)
+  const sfida = crea("div", "d-flex justify-content-between align-items-center text-center mb-3");
+  sfida.append(
+    creaSquadraModale(ev.logoCasa, ev.casa),
+    crea("div", "fs-3 fw-bold px-2", ev.punteggio() || "vs"),
+    creaSquadraModale(ev.logoTrasferta, ev.trasferta),
+  );
+
+  // Sotto, le informazioni una per riga: il nome a sinistra e il valore a destra
+  const info = crea("ul", "list-group list-group-flush");
+  const righe = [
+    ["Stato", ev.punteggio() ? "Finita" : "Da giocare"],
+    ["Data", ev.dataFormattata()],
+    ["Ora", ev.oraFormattata()],
+    ["Campionato", ev.campionato],
+    ["Stagione", ev.stagione],
+    ["Giornata", ev.giornata],
+    ["Stadio", ev.stadio],
+    ["Paese", ev.paese],
+  ];
+
+  for (const [nome, valore] of righe) {
+    // Quello che l'API non ha lo salto
+    if (!valore) continue;
+
+    const li = crea("li", "list-group-item d-flex justify-content-between gap-3 px-0");
+    li.append(crea("span", "text-secondary", nome), crea("span", "fw-bold text-end", valore));
+    info.append(li);
+  }
+
+  corpo.append(sfida, info);
 }
 
 
@@ -413,6 +522,28 @@ document.getElementById("filtro-sport").addEventListener("click", (e) => {
   if (squadre.length > 0) renderSquadre();
 });
 
+// Click su una partita: prima riempio la modale, poi Bootstrap la apre
+function apriEvento(e) {
+  const li = e.target.closest(".evento");
+  if (!li) return;
+
+  renderModale(eventiMostrati[li.dataset.id]);
+}
+
+// Vale per i prossimi eventi, gli ultimi risultati e l'agenda
+document.getElementById("prossimi-eventi").addEventListener("click", apriEvento);
+document.getElementById("ultimi-risultati").addEventListener("click", apriEvento);
+document.getElementById("agenda").addEventListener("click", apriEvento);
+
+// '🌙 Modalità scura' o '☀️ Modalità chiara': cambia il tema
+document.getElementById("btn-tema").addEventListener("click", () => {
+  const nuovo = document.documentElement.dataset.bsTheme === "dark" ? "light" : "dark";
+  applicaTema(nuovo);
+
+  // Me lo ricordo per la prossima volta che si apre la pagina
+  localStorage.setItem(CHIAVE_TEMA, nuovo);
+});
+
 
 // === Avvio ===
 
@@ -450,6 +581,9 @@ async function caricaAgenda() {
 
   renderAgenda();
 }
+
+// Il tema scelto l'ultima volta (la prima volta è quello chiaro)
+applicaTema(localStorage.getItem(CHIAVE_TEMA) ?? "light");
 
 // I preferiti salvati compaiono appena si apre la pagina, poi arrivano le loro partite
 renderPreferiti();
